@@ -45,8 +45,13 @@ function esconderTooltip() {
  * Gráfico de barras horizontais — peso por categoria.
  * "Não discriminado" sempre por último, em cinza neutro (não é uma 9ª cor
  * categórica, é o "resto" — ver dataviz skill: uma 9ª série nunca vira hue nova).
+ *
+ * Clicável: funciona como cross-filter (igual Looker Studio/Power BI) — clicar
+ * numa categoria chama onSelecionar(key), que o app.js usa pra filtrar a
+ * tabela e recalcular a evolução mensal só daquela categoria. Clicar de novo
+ * na mesma limpa a seleção (onSelecionar(key) de novo, o app decide o toggle).
  */
-function renderCategoriaChart(container, categorias) {
+function renderCategoriaChart(container, categorias, categoriaSelecionada, onSelecionar) {
   const reais = CATEGORIAS_META
     .filter((c) => c.key !== 'naoDiscriminado')
     .map((c) => ({ ...c, valor: categorias[c.key] || 0 }))
@@ -57,11 +62,16 @@ function renderCategoriaChart(container, categorias) {
 
   const todas = [...reais, naoDiscriminado];
   const max = Math.max(...todas.map((c) => c.valor), 1);
+  const temSelecao = !!categoriaSelecionada;
 
   container.innerHTML = '';
   todas.forEach((cat) => {
+    const estaSelecionada = cat.key === categoriaSelecionada;
     const row = document.createElement('div');
-    row.className = 'hbar-row' + (cat.key === 'naoDiscriminado' ? ' hbar-row--muted' : '');
+    row.className = 'hbar-row'
+      + (cat.key === 'naoDiscriminado' ? ' hbar-row--muted' : '')
+      + (estaSelecionada ? ' is-selected' : '')
+      + (temSelecao && !estaSelecionada ? ' is-dimmed' : '');
 
     const label = document.createElement('span');
     label.className = 'hbar-row__label';
@@ -81,8 +91,9 @@ function renderCategoriaChart(container, categorias) {
     value.textContent = cat.valor > 0 ? numeroKg(cat.valor) : '—';
 
     track.tabIndex = 0;
-    track.setAttribute('role', 'img');
-    track.setAttribute('aria-label', cat.label + ': ' + numeroKgPreciso(cat.valor));
+    track.setAttribute('role', 'button');
+    track.setAttribute('aria-pressed', String(estaSelecionada));
+    track.setAttribute('aria-label', 'Filtrar por ' + cat.label + ': ' + numeroKgPreciso(cat.valor));
     const abrirTip = (evt) => mostrarTooltip(evt.clientX, evt.clientY, cat.label, numeroKgPreciso(cat.valor));
     track.addEventListener('pointermove', abrirTip);
     track.addEventListener('pointerenter', abrirTip);
@@ -92,6 +103,25 @@ function renderCategoriaChart(container, categorias) {
     });
     track.addEventListener('pointerleave', esconderTooltip);
     track.addEventListener('blur', esconderTooltip);
+
+    if (typeof onSelecionar === 'function') {
+      const selecionar = (evt) => {
+        // Impede o clique de borbulhar ate o listener global de "clicar fora"
+        // (app.js) - sem isso, o proprio clique some com a selecao que ele
+        // acabou de fazer, porque renderGraficos() troca o DOM da linha na
+        // hora, quebrando a cadeia de ancestrais que o listener global usa
+        // pra saber se o clique foi "dentro" do grafico.
+        if (evt) evt.stopPropagation();
+        esconderTooltip();
+        onSelecionar(cat.key);
+      };
+      // a linha inteira e clicavel (nao so a barrinha), mais facil de acertar
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', selecionar);
+      track.addEventListener('keydown', (evt) => {
+        if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); selecionar(); }
+      });
+    }
 
     row.appendChild(label);
     row.appendChild(track);
@@ -133,10 +163,13 @@ function arredondarEscala(maxValor) {
 }
 
 /**
- * Gráfico de barras verticais — evolução mensal do peso total.
- * Uma única série (peso total), então usa um só hue de marca (sem legenda).
+ * Gráfico de barras verticais — evolução mensal.
+ * Uma única série, então usa um só hue de marca (sem legenda). Clicável:
+ * funciona como cross-filter, chamando onSelecionarMes({ano,mes}) — o app.js
+ * usa isso pra aplicar o mesmo filtro dos dropdowns de Ano/Mês. mesAtivo
+ * marca a barra que corresponde ao filtro ano/mês em vigor no momento.
  */
-function renderMensalChart(container, serieMensal) {
+function renderMensalChart(container, serieMensal, onSelecionarMes, mesAtivo) {
   container.innerHTML = '';
   if (!serieMensal.length) {
     container.innerHTML = '<div class="empty-state">Sem coletas no período selecionado.</div>';
@@ -190,11 +223,14 @@ function renderMensalChart(container, serieMensal) {
 
   const baselineY = escalaY(0);
 
+  const temMesAtivo = !!mesAtivo;
+
   serieMensal.forEach((m, i) => {
     const x = padLeft + i * barSlot + (barSlot - barWidth) / 2;
     const yTopo = escalaY(m.pesoTotalKg);
     const altura = Math.max(baselineY - yTopo, 1);
     const raio = Math.min(4, barWidth / 2, altura);
+    const estaAtivo = temMesAtivo && mesAtivo.ano === m.ano && mesAtivo.mes === m.mes;
 
     const path = document.createElementNS(svgNS, 'path');
     const d = `M ${x} ${baselineY}
@@ -204,11 +240,14 @@ function renderMensalChart(container, serieMensal) {
                Q ${x + barWidth} ${yTopo} ${x + barWidth} ${yTopo + raio}
                L ${x + barWidth} ${baselineY} Z`;
     path.setAttribute('d', d);
-    path.setAttribute('class', 'bar-chart__bar');
+    path.setAttribute('class', 'bar-chart__bar'
+      + (estaAtivo ? ' is-selected' : '')
+      + (temMesAtivo && !estaAtivo ? ' is-dimmed' : ''));
     path.setAttribute('tabindex', '0');
-    path.setAttribute('role', 'img');
+    path.setAttribute('role', 'button');
+    path.setAttribute('aria-pressed', String(estaAtivo));
     const mesNome = MESES_PT[m.mes - 1];
-    path.setAttribute('aria-label', `${mesNome} de ${m.ano}: ${numeroKgPreciso(m.pesoTotalKg)}`);
+    path.setAttribute('aria-label', `Filtrar por ${mesNome} de ${m.ano}: ${numeroKgPreciso(m.pesoTotalKg)}`);
 
     const abrirTip = (evt) => mostrarTooltip(evt.clientX, evt.clientY, `${mesNome} de ${m.ano}`, numeroKgPreciso(m.pesoTotalKg));
     path.addEventListener('pointermove', abrirTip);
@@ -219,6 +258,14 @@ function renderMensalChart(container, serieMensal) {
     });
     path.addEventListener('pointerleave', esconderTooltip);
     path.addEventListener('blur', esconderTooltip);
+
+    if (typeof onSelecionarMes === 'function') {
+      const selecionar = () => { esconderTooltip(); onSelecionarMes({ ano: m.ano, mes: m.mes }); };
+      path.addEventListener('click', selecionar);
+      path.addEventListener('keydown', (evt) => {
+        if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); selecionar(); }
+      });
+    }
 
     svg.appendChild(path);
 

@@ -3,7 +3,8 @@
 
 const state = {
   dados: null,
-  busca: ''
+  busca: '',
+  categoriaSelecionada: null
 };
 
 const els = {
@@ -19,6 +20,8 @@ const els = {
   kpiMedia: document.getElementById('kpi-media'),
   chartCategorias: document.getElementById('chart-categorias'),
   chartMensal: document.getElementById('chart-mensal'),
+  mensalTitulo: document.getElementById('mensal-titulo'),
+  mensalSubtitulo: document.getElementById('mensal-subtitulo'),
   coletasList: document.getElementById('coletas-list'),
   tabelaSubtitle: document.getElementById('tabela-subtitle')
 };
@@ -82,10 +85,70 @@ function formatarPeriodoAtivo(ano, mes) {
   return 'todo o período';
 }
 
-function coletaCorresponde(coleta, termo) {
+function coletaCorresponde(coleta, termo, categoriaKey) {
+  if (categoriaKey && !(coleta.categorias[categoriaKey] > 0)) return false;
   if (!termo) return true;
   const alvo = (coleta.responsavel + ' ' + coleta.textoOriginal).toLowerCase();
   return alvo.includes(termo.toLowerCase());
+}
+
+// --- Cross-filter (clicar num gráfico filtra os outros, igual Looker Studio/Power BI) ---
+
+function mesAtivoAtual() {
+  const ano = els.filtroAno.value ? Number(els.filtroAno.value) : null;
+  const mes = els.filtroMes.value ? Number(els.filtroMes.value) : null;
+  return (ano && mes) ? { ano, mes } : null;
+}
+
+// Recalcula a série mensal a partir das coletas já carregadas, considerando
+// só o peso da categoria selecionada — não precisa de nova chamada à API.
+function serieMensalFiltrada() {
+  if (!state.categoriaSelecionada) return state.dados.serieMensal;
+  const mapa = {};
+  state.dados.listaColetas.forEach((c) => {
+    const [, mes, ano] = c.data.split('/').map(Number);
+    const chave = ano + '-' + mes;
+    mapa[chave] = (mapa[chave] || 0) + (c.categorias[state.categoriaSelecionada] || 0);
+  });
+  return Object.keys(mapa).sort().map((chave) => {
+    const [ano, mes] = chave.split('-').map(Number);
+    return { ano, mes, pesoTotalKg: Math.round(mapa[chave] * 100) / 100 };
+  });
+}
+
+function renderMensalTitulo() {
+  const meta = state.categoriaSelecionada ? CATEGORIAS_META.find((c) => c.key === state.categoriaSelecionada) : null;
+  els.mensalTitulo.textContent = meta ? `Evolução mensal — ${meta.label}` : 'Evolução mensal';
+  els.mensalSubtitulo.textContent = meta
+    ? `kg de ${meta.label.toLowerCase()} por mês · clique numa barra pra filtrar`
+    : 'peso total coletado (kg) por mês · clique numa barra pra filtrar';
+}
+
+function aoSelecionarCategoria(key) {
+  state.categoriaSelecionada = state.categoriaSelecionada === key ? null : key;
+  renderGraficos();
+  renderTabela();
+}
+
+// Clicar numa barra do gráfico mensal aplica o mesmo filtro dos dropdowns de
+// Ano/Mês (o que dispara uma nova busca na API, já que esse recorte é
+// suportado no backend). Clicar de novo na mesma barra limpa o filtro.
+function aoSelecionarMes(sel) {
+  const atual = mesAtivoAtual();
+  if (atual && atual.ano === sel.ano && atual.mes === sel.mes) {
+    els.filtroAno.value = '';
+    els.filtroMes.value = '';
+  } else {
+    els.filtroAno.value = String(sel.ano);
+    els.filtroMes.value = String(sel.mes);
+  }
+  atualizarPainel();
+}
+
+function renderGraficos() {
+  renderCategoriaChart(els.chartCategorias, state.dados.resumo.categorias, state.categoriaSelecionada, aoSelecionarCategoria);
+  renderMensalTitulo();
+  renderMensalChart(els.chartMensal, serieMensalFiltrada(), aoSelecionarMes, mesAtivoAtual());
 }
 
 function criarChip(catKey, valor) {
@@ -175,7 +238,7 @@ function renderLinhaColeta(coleta) {
 }
 
 function renderTabela() {
-  const todas = state.dados.listaColetas.filter((c) => coletaCorresponde(c, state.busca));
+  const todas = state.dados.listaColetas.filter((c) => coletaCorresponde(c, state.busca, state.categoriaSelecionada));
 
   els.coletasList.innerHTML = '';
   if (!todas.length) {
@@ -184,7 +247,10 @@ function renderTabela() {
     todas.forEach((coleta) => els.coletasList.appendChild(renderLinhaColeta(coleta)));
   }
 
-  els.tabelaSubtitle.textContent = `${todas.length.toLocaleString('pt-BR')} coleta(s) · mais recentes primeiro`;
+  const sufixoCategoria = state.categoriaSelecionada
+    ? ` com ${CATEGORIAS_META.find((c) => c.key === state.categoriaSelecionada).label.toLowerCase()}`
+    : '';
+  els.tabelaSubtitle.textContent = `${todas.length.toLocaleString('pt-BR')} coleta(s)${sufixoCategoria} · mais recentes primeiro`;
 }
 
 const mainEl = document.querySelector('main');
@@ -204,8 +270,7 @@ async function atualizarPainel() {
 
     renderKpis(dados.resumo);
     els.kpiQtdHint.textContent = formatarPeriodoAtivo(ano, mes);
-    renderCategoriaChart(els.chartCategorias, dados.resumo.categorias);
-    renderMensalChart(els.chartMensal, dados.serieMensal);
+    renderGraficos();
     renderTabela();
   } catch (erro) {
     console.error(erro);
@@ -222,7 +287,35 @@ els.filtroMes.addEventListener('change', () => atualizarPainel());
 els.filtroReset.addEventListener('click', () => {
   els.filtroAno.value = '';
   els.filtroMes.value = '';
+  state.categoriaSelecionada = null;
   atualizarPainel();
+});
+// Clicar fora dos dois gráficos (no "vazio" da página) desfaz os filtros que
+// foram aplicados clicando neles — tanto a categoria quanto o mês/ano
+// selecionado no gráfico mensal. É a única forma de limpar esses filtros
+// clicando nos gráficos (não tem chip nem botão próprio). Os dropdowns de
+// ano/mês, a busca e a tabela ficam de fora dessa regra de propósito: clicar
+// neles não deve cancelar o cross-filter, porque combinam com ele.
+document.addEventListener('click', (evt) => {
+  const temCategoria = !!state.categoriaSelecionada;
+  const temMesAtivo = !!mesAtivoAtual();
+  if (!temCategoria && !temMesAtivo) return;
+
+  const ficaComoEsta = evt.target.closest('#chart-categorias')
+    || evt.target.closest('#chart-mensal')
+    || evt.target.closest('.filters')
+    || evt.target.closest('.card--tabela');
+  if (ficaComoEsta) return;
+
+  state.categoriaSelecionada = null;
+  if (temMesAtivo) {
+    els.filtroAno.value = '';
+    els.filtroMes.value = '';
+    atualizarPainel();
+  } else {
+    renderGraficos();
+    renderTabela();
+  }
 });
 
 let buscaTimeout;
@@ -241,7 +334,7 @@ let resizeTimeout;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimeout);
   resizeTimeout = setTimeout(() => {
-    if (state.dados) renderMensalChart(els.chartMensal, state.dados.serieMensal);
+    if (state.dados) renderMensalChart(els.chartMensal, serieMensalFiltrada(), aoSelecionarMes, mesAtivoAtual());
   }, 150);
 });
 
