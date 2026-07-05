@@ -1,0 +1,606 @@
+/* ============================================================
+   Painel Ecobarreira Rio João Mendes — amaDarcy
+   Paleta: chrome verde-floresta da marca + paleta categórica
+   validada (dataviz skill) para os dados. Ver README para a
+   fonte de cada token.
+   ============================================================ */
+
+:root {
+  /* --- Marca (chrome: header, botões, filtros ativos) --- */
+  --brand-900: #0f2015;
+  --brand-800: #16281c;
+  --brand-700: #1b3a2a;
+  --brand-600: #244b34;
+  --brand-500: #2f6144;
+  --brand-100: #e7efe8;
+
+  /* --- Superfícies --- */
+  --page-bg: #f7f8f6;
+  --surface: #ffffff;
+  --surface-sunken: #f1f3ef;
+
+  /* --- Tinta (texto) --- */
+  --text-primary: #14171a;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --text-on-brand: #f4f7f3;
+
+  /* --- Linhas / bordas --- */
+  --gridline: #e1e0d9;
+  --border: rgba(11, 11, 11, 0.10);
+  --baseline: #c3c2b7;
+
+  /* --- Paleta categórica (8 hues fixos, validados p/ CVD) --- */
+  --cat-microlixo: #2a78d6;      /* blue    */
+  --cat-vidro: #1baf7a;          /* aqua    */
+  --cat-plastico: #eda100;       /* yellow  */
+  --cat-metal: #008300;          /* green   */
+  --cat-vestimentas: #4a3aa7;    /* violet  */
+  --cat-tetrapak: #e34948;       /* red     */
+  --cat-naoidentificados: #e87ba4; /* magenta */
+  --cat-outros: #eb6834;         /* orange  */
+  --cat-naodiscriminado: #a6a49b; /* cinza neutro — "Outro/gap", nunca um 9º hue */
+
+  /* --- Status --- */
+  --status-good: #0ca30c;
+  --status-warning: #c98500;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --shadow-card: 0 1px 2px rgba(15, 32, 21, 0.06), 0 8px 24px rgba(15, 32, 21, 0.06);
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brand-900: #0a140d;
+    --brand-800: #0f1f14;
+    --brand-700: #132018;
+    --brand-600: #1b3324;
+    --brand-500: #2a4d37;
+    --brand-100: #16281c;
+
+    --page-bg: #0d120e;
+    --surface: #132018;
+    --surface-sunken: #0f1a13;
+
+    --text-primary: #f4f6f3;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8d9089;
+    --text-on-brand: #f4f7f3;
+
+    --gridline: #223026;
+    --border: rgba(255, 255, 255, 0.10);
+    --baseline: #38473d;
+
+    --cat-microlixo: #3987e5;
+    --cat-vidro: #199e70;
+    --cat-plastico: #c98500;
+    --cat-metal: #1a9c1a;
+    --cat-vestimentas: #9085e9;
+    --cat-tetrapak: #e66767;
+    --cat-naoidentificados: #d55181;
+    --cat-outros: #d95926;
+    --cat-naodiscriminado: #5b5f56;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--page-bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ≥900px: painel de tela única, sem rolagem de página — como um BI de
+   verdade. A rolagem, quando necessária, fica só dentro de cada cartão
+   (tabela, legenda de categorias). Abaixo de 900px a página volta a
+   empilhar e rolar normalmente (fixar altura não faz sentido em celular). */
+@media (min-width: 900px) {
+  html, body { height: 100%; overflow: hidden; }
+}
+
+.app-header {
+  background: linear-gradient(155deg, var(--brand-800), var(--brand-700) 55%, var(--brand-600));
+  color: var(--text-on-brand);
+  padding: 20px clamp(16px, 4vw, 40px);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.app-header__logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
+  background: var(--brand-900);
+}
+
+.app-header__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-header__eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #b9ceba;
+}
+
+.app-header__title {
+  font-size: clamp(18px, 2.4vw, 24px);
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.app-header__subtitle {
+  font-size: 13px;
+  color: #cfe0d0;
+  margin: 0;
+}
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: clamp(16px, 3vw, 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+/* Refetch mantém o quadro anterior visível, só esmaece — nunca skeleton/flash
+   (dados continuam lá, só ficam levemente acinzentados até a resposta chegar). */
+main.is-loading .sidebar,
+main.is-loading .card {
+  opacity: 0.55;
+  filter: saturate(0.7);
+  transition: opacity .15s ease, filter .15s ease;
+  pointer-events: none;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* --- ≥900px: grid de tela única, sem rolagem de página --- */
+@media (min-width: 900px) {
+  main {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1.15fr) minmax(0, 1fr);
+    /* Categorias fica do tamanho do seu conteúdo (legenda sempre visível,
+       sem scroll interno); a Evolução mensal herda todo o resto da altura
+       disponível na parte inferior. */
+    /* fit-content trava a linha de cima num teto (o suficiente pra caber as
+       9 categorias + legenda sem scroll) em vez de "auto" puro — um "auto"
+       aqui deixa a lista rolável da tabela inflar a linha inteira, espremendo
+       a Evolução mensal quase a zero. Com o teto, a mensal sempre herda o
+       resto da altura (a "parte inferior inteira"). */
+    grid-template-rows: fit-content(460px) minmax(200px, 1fr);
+    grid-template-areas:
+      "sidebar categorias tabela"
+      "sidebar mensal     mensal";
+  }
+
+  .sidebar { grid-area: sidebar; overflow-y: auto; padding-right: 2px; }
+
+  .card--categorias { grid-area: categorias; }
+
+  .card--mensal,
+  .card--tabela {
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .card--mensal { grid-area: mensal; }
+  .card--tabela { grid-area: tabela; }
+
+  .sidebar .filters { flex-direction: column; align-items: stretch; }
+  .sidebar .filters__reset { margin-left: 0; align-self: flex-start; }
+  .sidebar .kpi-row { display: flex; flex-direction: column; gap: 12px; }
+
+  .card--mensal .bar-chart-wrap { flex: 1; min-height: 0; }
+  .card--tabela .coletas-list { flex: 1; min-height: 0; overflow-y: auto; }
+}
+
+@media (min-width: 1180px) {
+  main { grid-template-columns: 248px minmax(0, 1.15fr) minmax(0, 1fr); }
+}
+
+/* --- Filtros: uma linha, acima do conteúdo --- */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.filters__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.filters select {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 32px 8px 12px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2352514e' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+  transition: border-color .15s ease;
+}
+.filters select:hover { border-color: var(--brand-500); }
+.filters select:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 1px; }
+
+.filters__reset {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+}
+.filters__reset:hover { background: var(--brand-100); }
+
+/* --- KPIs --- */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.kpi-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.kpi-tile__label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.kpi-tile__value {
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 700;
+  font-variant-numeric: proportional-nums;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.kpi-tile__hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* --- Cards de conteúdo --- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 20px clamp(14px, 3vw, 24px);
+}
+
+.card__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.card__title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.card__subtitle {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+}
+
+/* --- Gráfico de barras horizontal (categorias) --- */
+.hbar-chart { width: 100%; }
+.hbar-row {
+  display: grid;
+  grid-template-columns: 128px 1fr 74px;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+}
+.hbar-row__label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hbar-row__track {
+  position: relative;
+  height: 14px;
+  background: var(--surface-sunken);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.hbar-row__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  transition: width .5s cubic-bezier(.2,.8,.2,1);
+}
+.hbar-row__value {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.hbar-row--muted .hbar-row__label,
+.hbar-row--muted .hbar-row__value { color: var(--text-muted); }
+
+/* --- Gráfico mensal (SVG) --- */
+.bar-chart-wrap { width: 100%; height: 100%; overflow: hidden; }
+.bar-chart-wrap svg { display: block; width: 100%; height: 100%; }
+.bar-chart__bar { fill: var(--brand-500); cursor: pointer; transition: fill .12s ease; }
+.bar-chart__bar:hover, .bar-chart__bar:focus-visible { fill: var(--brand-600); outline: none; }
+.bar-chart__axis-label { fill: var(--text-muted); font-size: 11px; font-family: var(--font-sans); }
+.bar-chart__gridline { stroke: var(--gridline); stroke-width: 1; }
+
+/* --- Tooltip flutuante --- */
+.viz-tooltip {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  background: var(--brand-900);
+  color: var(--text-on-brand);
+  font-size: 12.5px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.25);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity .1s ease, transform .1s ease;
+  max-width: 240px;
+}
+.viz-tooltip.is-visible { opacity: 1; transform: translateY(0); }
+.viz-tooltip__title { font-weight: 700; margin-bottom: 2px; }
+.viz-tooltip__value { font-variant-numeric: tabular-nums; }
+
+/* --- Legenda --- */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--gridline);
+}
+.legend__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.legend__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* --- Tabela de coletas --- */
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.table-toolbar input[type="search"] {
+  flex: 1;
+  max-width: 280px;
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+.table-toolbar input[type="search"]:focus-visible { outline: 2px solid var(--brand-500); }
+
+.coletas-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--gridline);
+}
+
+.coleta-row {
+  border-bottom: 1px solid var(--gridline);
+}
+
+.coleta-row__summary {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 96px 1fr 90px 22px;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+}
+.coleta-row__summary:hover { background: var(--surface-sunken); }
+.coleta-row__summary:focus-visible { outline: 2px solid var(--brand-500); outline-offset: -2px; }
+
+.coleta-row__date {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.coleta-row__resumo {
+  font-size: 13px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.coleta-row__peso {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.coleta-row__chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  transition: transform .15s ease;
+  justify-self: end;
+}
+.coleta-row.is-open .coleta-row__chevron { transform: rotate(180deg); }
+
+.coleta-row__detail {
+  display: none;
+  padding: 4px 4px 16px 4px;
+}
+.coleta-row.is-open .coleta-row__detail { display: block; }
+
+.coleta-detail__categorias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-bottom: 10px;
+}
+.coleta-detail__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border-radius: 999px;
+  padding: 4px 10px 4px 8px;
+}
+.coleta-detail__chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.coleta-detail__texto {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  white-space: pre-line;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.coleta-detail__meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* --- Estados --- */
+.empty-state, .error-state {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+.error-state { color: var(--status-warning); }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-sunken) 25%, var(--gridline) 37%, var(--surface-sunken) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes skeleton-loading {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.app-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 18px;
+}
+.app-footer__logo {
+  height: 16px;
+  width: auto;
+  display: block;
+}
+
+/* --- Responsivo --- */
+@media (max-width: 620px) {
+  .hbar-row { grid-template-columns: 92px 1fr 62px; }
+  .coleta-row__summary { grid-template-columns: 78px 1fr 74px 20px; gap: 8px; }
+}

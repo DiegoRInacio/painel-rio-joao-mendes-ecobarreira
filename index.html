@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Ecobarreira — Rio João Mendes | amaDarcy</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="app-header">
+  <img class="app-header__logo" src="assets/logo.png" alt="Logo amaDarcy" onerror="this.style.display='none'">
+  <div class="app-header__titles">
+    <span class="app-header__eyebrow">amaDarcy · Instituto Florestas Únicas e Raras</span>
+    <h1 class="app-header__title">Painel de Acompanhamento — Ecobarreira do Rio João Mendes</h1>
+    <p class="app-header__subtitle">Niterói · RJ</p>
+  </div>
+</header>
+
+<main>
+
+  <aside class="sidebar">
+    <section class="filters" aria-label="Filtros">
+      <span class="filters__label">Filtrar por:</span>
+      <select id="filtro-ano" aria-label="Ano">
+        <option value="">Todos os anos</option>
+      </select>
+      <select id="filtro-mes" aria-label="Mês">
+        <option value="">Todos os meses</option>
+      </select>
+      <button class="filters__reset" id="filtro-reset" type="button">Limpar filtros</button>
+    </section>
+
+    <section class="kpi-row" id="kpi-row" aria-label="Indicadores gerais">
+      <div class="kpi-tile">
+        <span class="kpi-tile__label">Total de peso coletado</span>
+        <span class="kpi-tile__value" id="kpi-peso-total">—</span>
+        <span class="kpi-tile__hint">kg, pesado na balança</span>
+      </div>
+      <div class="kpi-tile">
+        <span class="kpi-tile__label">Quantidade de coletas</span>
+        <span class="kpi-tile__value" id="kpi-qtd-coletas">—</span>
+        <span class="kpi-tile__hint" id="kpi-qtd-hint">no período selecionado</span>
+      </div>
+      <div class="kpi-tile">
+        <span class="kpi-tile__label">Peso categorizado</span>
+        <span class="kpi-tile__value" id="kpi-peso-categorizado">—</span>
+        <span class="kpi-tile__hint" id="kpi-peso-categorizado-hint">kg com tipo de resíduo identificado</span>
+      </div>
+      <div class="kpi-tile">
+        <span class="kpi-tile__label">Média por coleta</span>
+        <span class="kpi-tile__value" id="kpi-media">—</span>
+        <span class="kpi-tile__hint">kg por coleta</span>
+      </div>
+    </section>
+  </aside>
+
+  <section class="card card--categorias">
+    <div class="card__header">
+      <div>
+        <h2 class="card__title">Peso por tipo de resíduo</h2>
+        <p class="card__subtitle">kg categorizados a partir da descrição de cada coleta</p>
+      </div>
+    </div>
+    <div id="chart-categorias" class="hbar-chart" aria-label="Gráfico de peso por categoria de resíduo">
+      <div class="skeleton" style="height:200px"></div>
+    </div>
+  </section>
+
+  <section class="card card--mensal">
+    <div class="card__header">
+      <div>
+        <h2 class="card__title">Evolução mensal</h2>
+        <p class="card__subtitle">peso total coletado (kg) por mês</p>
+      </div>
+    </div>
+    <div id="chart-mensal" class="bar-chart-wrap" aria-label="Gráfico de evolução mensal do peso coletado">
+      <div class="skeleton" style="height:200px"></div>
+    </div>
+  </section>
+
+  <section class="card card--tabela">
+    <div class="card__header">
+      <div>
+        <h2 class="card__title">Coletas registradas</h2>
+        <p class="card__subtitle" id="tabela-subtitle">mais recentes primeiro</p>
+      </div>
+    </div>
+    <div class="table-toolbar">
+      <input type="search" id="busca-coleta" placeholder="Buscar por responsável ou resíduo…">
+    </div>
+    <div id="coletas-list" class="coletas-list">
+      <div class="skeleton" style="height:44px; margin-bottom:6px;"></div>
+      <div class="skeleton" style="height:44px; margin-bottom:6px;"></div>
+      <div class="skeleton" style="height:44px;"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="app-footer">
+  <span>Elaborado por</span>
+  <img class="app-footer__logo" src="assets/logo_dta_branco.jpg" alt="DTA Dados">
+</footer>
+
+<div class="viz-tooltip" id="viz-tooltip" role="tooltip"></div>
+
+<script src="js/config.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
